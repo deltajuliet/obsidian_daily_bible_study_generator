@@ -39,8 +39,11 @@ class CanonicalPlan(ReadingPlanStrategy):
         # Distribute chapters across days
         reading_assignments = self._distribute_chapters(books, days, chapters_per_day)
         
-        # Generate dates
-        dates = self._generate_dates(year, days)
+        # Adjust total_days to match actual days used
+        actual_days = len(reading_assignments)
+        
+        # Generate dates for actual days
+        dates = self._generate_dates(year, actual_days)
         
         # Create StudyDay objects
         schedule = []
@@ -49,7 +52,7 @@ class CanonicalPlan(ReadingPlanStrategy):
                 date=day_date,
                 day_number=day_num,
                 reading_segments=segments,
-                total_days=days,
+                total_days=actual_days,
             )
             schedule.append(study_day)
         
@@ -68,28 +71,23 @@ class CanonicalPlan(ReadingPlanStrategy):
         Returns:
             List of reading segment lists, one per day
         """
-        assignments: List[List[ReadingSegment]] = [[] for _ in range(days)]
-        
-        current_day = 0
-        current_day_chapters = 0
+        # Create all segments first
+        all_segments: List[ReadingSegment] = []
         
         for book in books:
             current_chapter = 1
             
             while current_chapter <= book.chapters:
-                # Calculate how many chapters to assign to current day
-                remaining_chapters_in_book = book.chapters - current_chapter + 1
-                space_in_current_day = max(
-                    1, int(target_chapters_per_day - current_day_chapters)
+                # Determine chapters to read in this segment
+                # Use target as a guide, but be flexible
+                chapters_to_assign = min(
+                    max(1, round(target_chapters_per_day)),
+                    book.chapters - current_chapter + 1
                 )
                 
-                # Don't split very small books if possible
+                # Don't split very small books
                 if book.chapters <= 3 and current_chapter == 1:
                     chapters_to_assign = book.chapters
-                else:
-                    chapters_to_assign = min(
-                        space_in_current_day, remaining_chapters_in_book
-                    )
                 
                 end_chapter = current_chapter + chapters_to_assign - 1
                 
@@ -109,24 +107,26 @@ class CanonicalPlan(ReadingPlanStrategy):
                     estimated_minutes=estimated_minutes,
                 )
                 
-                assignments[current_day].append(segment)
-                current_day_chapters += chapters_to_assign
+                all_segments.append(segment)
                 current_chapter = end_chapter + 1
-                
-                # Move to next day if we've hit the target
-                if current_day_chapters >= target_chapters_per_day:
-                    current_day += 1
-                    current_day_chapters = 0
-                    
-                    # Safety check
-                    if current_day >= days:
-                        current_day = days - 1
         
-        # Handle empty days (shouldn't happen with correct calculation)
-        # If there are empty days at the end, redistribute from fuller days
-        empty_days = [i for i, day in enumerate(assignments) if not day]
-        if empty_days:
-            # This is a safeguard - in practice, the distribution should fill all days
-            pass
+        # Now distribute segments across days
+        # Try to balance the load evenly
+        assignments: List[List[ReadingSegment]] = [[] for _ in range(days)]
+        
+        current_day = 0
+        for segment in all_segments:
+            if current_day >= days:
+                # If we've run out of days, add to the last day
+                current_day = days - 1
+            
+            assignments[current_day].append(segment)
+            
+            # Move to next day after adding segment
+            # This ensures segments are spread across all days
+            current_day += 1
+        
+        # Remove any empty days at the end
+        assignments = [day for day in assignments if day]
         
         return assignments
