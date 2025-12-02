@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Test outputs
+test-output/
+bible-study/
+
 # Distribution / packaging
 .Python
 build/

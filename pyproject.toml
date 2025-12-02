@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "obsidian-daily-bible-study-generator"
+version = "1.0.0"
+description = "Generate daily Bible study plans as Markdown files for Obsidian"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Development Team"}
+]
+keywords = ["bible", "obsidian", "study", "reading-plan", "markdown"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Religion",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+
+dependencies = [
+    "click>=8.1.7",
+    "jinja2>=3.1.2",
+    "pyyaml>=6.0.1",
+    "python-dateutil>=2.8.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.0",
+    "ruff>=0.1.7",
+    "mypy>=1.7.1",
+    "types-PyYAML>=6.0.12",
+    "types-python-dateutil>=2.8.19",
+]
+
+[project.scripts]
+bible-study-planner = "bible_study_planner.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/deltajuliet/obsidian_daily_bible_study_generator"
+Repository = "https://github.com/deltajuliet/obsidian_daily_bible_study_generator"
+Issues = "https://github.com/deltajuliet/obsidian_daily_bible_study_generator/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bible_study_planner*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=bible_study_planner --cov-report=html --cov-report=term"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
