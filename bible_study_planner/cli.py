@@ -475,12 +475,14 @@ tags: [bible-study, plan-index, {start_date.year}]
 
 ```dataview
 TABLE WITHOUT ID
-  ("🎯 " + round((length(rows.file) / {total_days}) * 100, 1) + "%") as "Progress",
-  length(rows.file) as "Days Completed",
-  ({total_days} - length(rows.file)) as "Days Remaining",
+  length(rows) as "Days Completed",
+  ({total_days} - length(rows)) as "Days Remaining",
+  round((length(rows) / {total_days}) * 100, 1) + "%" as "Progress",
   sum(rows.verse_count) as "Verses Read",
-  round((sum(rows.estimated_minutes) or 0) / 60, 1) + "h" as "Time Invested"
+  round(sum(rows.estimated_minutes) / 60, 1) + "h" as "Time Invested"
+FROM ""
 WHERE plan_id = "{plan_id}" AND status = "completed"
+GROUP BY "Progress Summary"
 ```
 
 ### Reading Pace (Last 7 Days)
@@ -516,7 +518,7 @@ TABLE WITHOUT ID
   testament as "Testament",
   length(rows.file) as "Days Completed",
   sum(rows.verse_count) as "Verses Read",
-  round((sum(rows.estimated_minutes) or 0) / 60, 1) + "h" as "Time"
+  round(sum(rows.estimated_minutes) / 60, 1) + "h" as "Time"
 WHERE plan_id = "{plan_id}" AND status = "completed"
 GROUP BY testament
 ```
