@@ -1,7 +1,7 @@
 """Command-line interface for Bible study planner."""
 
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import click
@@ -20,11 +20,16 @@ def main() -> None:
 
 @main.command()
 @click.option(
+    "--start-date",
+    type=str,
+    default=None,
+    help="Starting date for the reading plan (YYYY-MM-DD format)",
+)
+@click.option(
     "--year",
     type=int,
-    default=date.today().year,
-    help="Target year for the reading plan",
-    show_default=True,
+    default=None,
+    help="[DEPRECATED] Use --start-date instead. Target year (defaults to Jan 1)",
 )
 @click.option(
     "--scope",
@@ -57,7 +62,8 @@ def main() -> None:
     help="Verbose output",
 )
 def generate(
-    year: int,
+    start_date: str | None,
+    year: int | None,
     scope: str,
     days: int | None,
     output: Path,
@@ -65,6 +71,13 @@ def generate(
     verbose: bool,
 ) -> None:
     """Generate a Bible reading plan."""
+    
+    # Resolve start date with validation
+    try:
+        resolved_start_date = _resolve_start_date(start_date, year)
+    except ValueError as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
     
     # Map scope string to BibleScope enum
     scope_map = {
@@ -84,7 +97,7 @@ def generate(
         days = default_days[bible_scope]
     
     click.echo(f"📖 Bible Study Planner")
-    click.echo(f"   Year: {year}")
+    click.echo(f"   Start Date: {resolved_start_date}")
     click.echo(f"   Scope: {scope.upper()}")
     click.echo(f"   Days: {days}")
     click.echo(f"   Output: {output}")
@@ -111,7 +124,7 @@ def generate(
             click.echo("Generating reading plan...")
         
         plan = CanonicalPlan(bible_data)
-        schedule = plan.generate_schedule(year, days, bible_scope)
+        schedule = plan.generate_schedule(resolved_start_date, days, bible_scope)
         
         # Validate schedule
         if not plan.validate_schedule(schedule):
@@ -230,6 +243,71 @@ def _generate_simple_markdown(day: StudyDay) -> str:
     content += f"**Progress**: Day {day.day_number} of {day.total_days} ({day.progress_percentage}%)\n"
     
     return content
+
+
+def _resolve_start_date(start_date_str: str | None, year: int | None) -> date:
+    """Resolve the start date from user input with validation.
+    
+    Args:
+        start_date_str: Start date string in YYYY-MM-DD format (optional)
+        year: Year for backward compatibility (optional)
+        
+    Returns:
+        Resolved date object
+        
+    Raises:
+        ValueError: If date is invalid or out of acceptable range
+    """
+    # Case 1: --start-date provided
+    if start_date_str:
+        if year:
+            click.echo("⚠️  Warning: Both --start-date and --year provided. Using --start-date.")
+        
+        try:
+            parsed_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(
+                f"Invalid date format: '{start_date_str}'. Expected YYYY-MM-DD format."
+            )
+        
+        # Validate date is not too far in the past or future
+        _validate_date_range(parsed_date)
+        
+        return parsed_date
+    
+    # Case 2: --year provided (backward compatibility)
+    if year:
+        click.echo("⚠️  Note: --year is deprecated. Use --start-date for more flexibility.")
+        parsed_date = date(year, 1, 1)
+        _validate_date_range(parsed_date)
+        return parsed_date
+    
+    # Case 3: Neither provided - default to today
+    return date.today()
+
+
+def _validate_date_range(check_date: date) -> None:
+    """Validate that date is within acceptable range.
+    
+    Args:
+        check_date: Date to validate
+        
+    Raises:
+        ValueError: If date is out of acceptable range
+    """
+    min_date = date(1900, 1, 1)
+    max_date = date.today().replace(year=date.today().year + 10)
+    
+    if check_date < min_date:
+        raise ValueError(
+            f"Start date cannot be before {min_date.strftime('%Y-%m-%d')}"
+        )
+    
+    if check_date > max_date:
+        raise ValueError(
+            f"Start date cannot be more than 10 years in the future "
+            f"(max: {max_date.strftime('%Y-%m-%d')})"
+        )
 
 
 if __name__ == "__main__":

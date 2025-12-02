@@ -21,12 +21,12 @@ class ReadingPlanStrategy(ABC):
 
     @abstractmethod
     def generate_schedule(
-        self, year: int, days: int, scope: BibleScope
+        self, start_date: date, days: int, scope: BibleScope
     ) -> List[StudyDay]:
         """Generate complete reading schedule.
 
         Args:
-            year: Year for the reading plan
+            start_date: Starting date for the reading plan
             days: Number of days in the plan
             scope: Bible scope (complete, old_testament, new_testament)
 
@@ -60,15 +60,14 @@ class ReadingPlanStrategy(ABC):
 
         return True
 
-    def _generate_dates(self, year: int, days: int) -> List[date]:
-        """Generate sequential dates starting from January 1st.
+    def _generate_dates(self, start_date: date, days: int) -> List[date]:
+        """Generate sequential dates starting from the specified date.
 
         Args:
-            year: Year to generate dates for
+            start_date: Starting date for the plan
             days: Number of days to generate
 
         Returns:
             List of date objects
         """
-        start_date = date(year, 1, 1)
         return [start_date + timedelta(days=i) for i in range(days)]

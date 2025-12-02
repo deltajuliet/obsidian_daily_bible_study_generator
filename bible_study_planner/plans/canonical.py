@@ -1,5 +1,6 @@
 """Canonical reading plan - reads Bible in book order."""
 
+from datetime import date
 from typing import List, Tuple
 
 from ..bible.data_manager import BibleScope
@@ -18,12 +19,12 @@ class CanonicalPlan(ReadingPlanStrategy):
     """
 
     def generate_schedule(
-        self, year: int, days: int, scope: BibleScope
+        self, start_date: date, days: int, scope: BibleScope
     ) -> List[StudyDay]:
         """Generate canonical reading schedule.
 
         Args:
-            year: Year for the reading plan
+            start_date: Starting date for the reading plan
             days: Number of days in the plan
             scope: Bible scope
 
@@ -43,7 +44,7 @@ class CanonicalPlan(ReadingPlanStrategy):
         actual_days = len(reading_assignments)
         
         # Generate dates for actual days
-        dates = self._generate_dates(year, actual_days)
+        dates = self._generate_dates(start_date, actual_days)
         
         # Create StudyDay objects
         schedule = []
