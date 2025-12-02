@@ -40,7 +40,7 @@ pip install -e .
 
 ### Basic Usage
 
-Generate a complete Bible reading plan for the current year:
+Generate a complete Bible reading plan starting today:
 
 ```bash
 bible-study-planner generate
@@ -60,12 +60,14 @@ bible-study-planner generate [OPTIONS]
 
 **Options:**
 
-- `--year INTEGER` - Target year for the reading plan (default: current year)
+- `--start-date DATE` - Starting date for the reading plan in YYYY-MM-DD format (default: today)
+- `--end-date DATE` - Ending date for the reading plan in YYYY-MM-DD format (auto-calculates days)
+- `--year INTEGER` - **[DEPRECATED]** Target year (use `--start-date` instead)
 - `--scope [complete|ot|nt]` - Bible scope to use:
   - `complete` - Full Bible (66 books, 1,189 chapters)
   - `ot` - Old Testament only (39 books, 929 chapters)
   - `nt` - New Testament only (27 books, 260 chapters)
-- `--days INTEGER` - Number of days in the plan (overrides scope default)
+- `--days INTEGER` - Number of days in the plan (ignored if `--end-date` provided)
 - `--output PATH` - Output directory for generated files (default: `./bible-study`)
 - `--dry-run` - Preview the plan without generating files
 - `-v, --verbose` - Enable verbose output
@@ -73,19 +75,34 @@ bible-study-planner generate [OPTIONS]
 
 ### Examples
 
-**Complete Bible in one year:**
+**Start reading today (complete Bible in 365 days):**
 ```bash
-bible-study-planner generate --year 2025
+bible-study-planner generate
 ```
 
-**New Testament in 90 days:**
+**Start on a specific date:**
 ```bash
-bible-study-planner generate --year 2025 --scope nt --days 90
+bible-study-planner generate --start-date 2025-03-15 --scope nt --days 90
 ```
 
-**Old Testament in 270 days:**
+**Specify date range (e.g., first quarter of 2025):**
 ```bash
-bible-study-planner generate --year 2025 --scope ot
+bible-study-planner generate --start-date 2025-01-01 --end-date 2025-03-31 --scope nt
+```
+
+**Plan until end of year:**
+```bash
+bible-study-planner generate --end-date 2025-12-31 --scope complete
+```
+
+**New Testament in 90 days starting today:**
+```bash
+bible-study-planner generate --scope nt --days 90
+```
+
+**Old Testament starting on your birthday:**
+```bash
+bible-study-planner generate --start-date 2025-06-15 --scope ot
 ```
 
 **Custom output directory:**
@@ -96,6 +113,11 @@ bible-study-planner generate --output ~/Documents/Obsidian/BibleStudy
 **Preview without generating files:**
 ```bash
 bible-study-planner generate --scope nt --dry-run
+```
+
+**Legacy format (still supported, but deprecated):**
+```bash
+bible-study-planner generate --year 2025 --scope nt
 ```
 
 ## Generated File Format
