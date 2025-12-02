@@ -26,6 +26,12 @@ def main() -> None:
     help="Starting date for the reading plan (YYYY-MM-DD format)",
 )
 @click.option(
+    "--end-date",
+    type=str,
+    default=None,
+    help="Ending date for the reading plan (YYYY-MM-DD format). Auto-calculates days.",
+)
+@click.option(
     "--year",
     type=int,
     default=None,
@@ -63,6 +69,7 @@ def main() -> None:
 )
 def generate(
     start_date: str | None,
+    end_date: str | None,
     year: int | None,
     scope: str,
     days: int | None,
@@ -72,14 +79,7 @@ def generate(
 ) -> None:
     """Generate a Bible reading plan."""
     
-    # Resolve start date with validation
-    try:
-        resolved_start_date = _resolve_start_date(start_date, year)
-    except ValueError as e:
-        click.echo(f"❌ Error: {e}", err=True)
-        sys.exit(1)
-    
-    # Map scope string to BibleScope enum
+    # Map scope string to BibleScope enum (needed for day resolution)
     scope_map = {
         "complete": BibleScope.COMPLETE,
         "ot": BibleScope.OLD_TESTAMENT,
@@ -87,19 +87,24 @@ def generate(
     }
     bible_scope = scope_map[scope.lower()]
     
-    # Set default days based on scope if not specified
-    if days is None:
-        default_days = {
-            BibleScope.COMPLETE: 365,
-            BibleScope.OLD_TESTAMENT: 270,
-            BibleScope.NEW_TESTAMENT: 90,
-        }
-        days = default_days[bible_scope]
+    # Resolve start date with validation
+    try:
+        resolved_start_date = _resolve_start_date(start_date, year)
+    except ValueError as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
+    
+    # Resolve days (considering end_date)
+    try:
+        resolved_days = _resolve_days(resolved_start_date, end_date, days, bible_scope)
+    except ValueError as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
     
     click.echo(f"📖 Bible Study Planner")
     click.echo(f"   Start Date: {resolved_start_date}")
     click.echo(f"   Scope: {scope.upper()}")
-    click.echo(f"   Days: {days}")
+    click.echo(f"   Days: {resolved_days}")
     click.echo(f"   Output: {output}")
     click.echo()
     
@@ -116,7 +121,7 @@ def generate(
         click.echo(f"   Chapters: {stats['chapters']}")
         click.echo(f"   Verses: {stats['verses']}")
         click.echo(f"   Est. Hours: {stats['estimated_hours']}h")
-        click.echo(f"   Avg Chapters/Day: {stats['chapters'] / days:.2f}")
+        click.echo(f"   Avg Chapters/Day: {stats['chapters'] / resolved_days:.2f}")
         click.echo()
         
         # Generate reading plan
@@ -124,7 +129,7 @@ def generate(
             click.echo("Generating reading plan...")
         
         plan = CanonicalPlan(bible_data)
-        schedule = plan.generate_schedule(resolved_start_date, days, bible_scope)
+        schedule = plan.generate_schedule(resolved_start_date, resolved_days, bible_scope)
         
         # Validate schedule
         if not plan.validate_schedule(schedule):
@@ -308,6 +313,81 @@ def _validate_date_range(check_date: date) -> None:
             f"Start date cannot be more than 10 years in the future "
             f"(max: {max_date.strftime('%Y-%m-%d')})"
         )
+
+
+def _resolve_days(
+    start_date: date,
+    end_date_str: str | None,
+    days: int | None,
+    scope: BibleScope,
+) -> int:
+    """Resolve the number of days for the plan.
+    
+    Args:
+        start_date: Resolved start date
+        end_date_str: Optional end date string
+        days: Optional explicit days count
+        scope: Bible scope for default days
+        
+    Returns:
+        Number of days for the plan
+        
+    Raises:
+        ValueError: If dates are invalid or conflicting
+    """
+    # Case 1: --end-date provided
+    if end_date_str:
+        if days:
+            click.echo(
+                "⚠️  Warning: Both --end-date and --days provided. "
+                "Using --end-date (ignoring --days)."
+            )
+        
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(
+                f"Invalid end date format: '{end_date_str}'. "
+                "Expected YYYY-MM-DD format."
+            )
+        
+        # Validate end date
+        _validate_date_range(end_date)
+        
+        # Calculate days (inclusive)
+        calculated_days = (end_date - start_date).days + 1
+        
+        if calculated_days < 1:
+            raise ValueError(
+                f"End date ({end_date}) must be after start date ({start_date})"
+            )
+        
+        if calculated_days > 3650:  # ~10 years
+            raise ValueError(
+                f"Date range too long ({calculated_days} days). "
+                f"Maximum is 3650 days (~10 years)"
+            )
+        
+        # Warn for extreme durations
+        if calculated_days < 7:
+            click.echo(
+                f"⚠️  Note: Short duration ({calculated_days} days) may result in "
+                "heavy daily reading load."
+            )
+        
+        return calculated_days
+    
+    # Case 2: --days provided
+    if days:
+        return days
+    
+    # Case 3: Use scope defaults
+    default_days = {
+        BibleScope.COMPLETE: 365,
+        BibleScope.OLD_TESTAMENT: 270,
+        BibleScope.NEW_TESTAMENT: 90,
+    }
+    return default_days[scope]
 
 
 if __name__ == "__main__":

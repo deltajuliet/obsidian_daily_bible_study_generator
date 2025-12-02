@@ -1,7 +1,7 @@
 # ADR-003: End Date Option for Reading Plans
 
-**Status**: Proposed  
-**Date**: 2025-12-02  
+**Status**: Approved & Implemented  
+**Date**: 2025-12-02
 **Decision Makers**: deltajuliet  
 **Supersedes**: N/A  
 **Related to**: ADR-002 (Flexible Start Date)
@@ -542,14 +542,14 @@ bible-study-planner generate --period "this-month" --scope complete
 
 ## Approval
 
-- [ ] Architecture Approved
-- [ ] Implementation Plan Approved
-- [ ] User Experience Reviewed
-- [ ] Testing Strategy Approved
-- [ ] Ready for Development
+- [x] Architecture Approved
+- [x] Implementation Plan Approved
+- [x] User Experience Reviewed
+- [x] Testing Strategy Approved
+- [x] Ready for Development
 
-**Approved By**: _________________  
-**Date**: _________________
+**Approved By**: Development Team  
+**Date**: 2025-12-02
 
 ---
 
@@ -558,3 +558,4 @@ bible-study-planner generate --period "this-month" --scope complete
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
 | 2025-12-02 | 1.0 | Initial ADR for end-date option | Development Team |
+| 2025-12-02 | 1.1 | Implemented in code (v1.2) | Development Team |
