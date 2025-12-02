@@ -5,11 +5,14 @@ A Python-based tool that generates daily Bible study plans as Markdown files opt
 ## Features
 
 - 📖 **Multiple Scopes**: Generate plans for the complete Bible, Old Testament only, or New Testament only
-- 📅 **Flexible Duration**: Customize the number of days (default: 365 for complete Bible, 270 for OT, 90 for NT)
+- 📅 **Flexible Start Date**: Start your plan on any date (default: today) - no need to wait for January 1st
+- 🗓️ **Date Range Support**: Specify start and end dates, or use number of days
 - 📊 **Rich Metadata**: Each daily note includes frontmatter with tags, reading statistics, and Dataview-compatible fields
-- 🎯 **Progress Tracking**: Track your reading progress with built-in metadata fields
+- 📈 **Plan Index Dashboard**: Auto-generated index file with embedded Dataview queries for progress tracking
+- 🎯 **Multiple Concurrent Plans**: Create and manage multiple reading plans simultaneously with unique plan IDs
 - ⏱️ **Time Estimates**: Automatic calculation of estimated reading time based on word count
 - 🔖 **Obsidian Optimized**: Designed specifically for Obsidian with proper formatting and linking support
+- 📚 **Enhanced Book Tracking**: Support for multi-book days with structured metadata
 
 ## Installation
 
@@ -69,6 +72,8 @@ bible-study-planner generate [OPTIONS]
   - `nt` - New Testament only (27 books, 260 chapters)
 - `--days INTEGER` - Number of days in the plan (ignored if `--end-date` provided)
 - `--output PATH` - Output directory for generated files (default: `./bible-study`)
+- `--plan-name TEXT` - Human-readable plan name (auto-generated if not provided)
+- `--plan-id TEXT` - Unique plan identifier (auto-generated if not provided)
 - `--dry-run` - Preview the plan without generating files
 - `-v, --verbose` - Enable verbose output
 - `--help` - Show help message
@@ -189,6 +194,7 @@ obsidian_daily_bible_study_generator/
 │   ├── bible_metadata.json
 │   ├── old_testament_books.json
 │   └── new_testament_books.json
+├── test-output/                    #Folder for testing file outputs
 ├── ADRs/                    # Architecture Decision Records
 ├── pyproject.toml          # Project configuration
 ├── requirements.txt        # Dependencies
@@ -208,6 +214,8 @@ The tool includes complete Bible structure data with:
 ## Development
 
 ### Running Tests
+
+Use the `./test-output` folder for all output testing
 
 ```bash
 pytest
