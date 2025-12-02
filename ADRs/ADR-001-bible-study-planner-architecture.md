@@ -193,7 +193,7 @@ status: pending  # pending, in-progress, completed
 ### Directory Structure
 
 ```
-bible-study-planner/
+obsidian_daily_bible_study_generator/
 ├── bible_study_planner/
 │   ├── __init__.py
 │   ├── __main__.py              # CLI entry point
