@@ -5,11 +5,14 @@ A Python-based tool that generates daily Bible study plans as Markdown files opt
 ## Features
 
 - 📖 **Multiple Scopes**: Generate plans for the complete Bible, Old Testament only, or New Testament only
-- 📅 **Flexible Duration**: Customize the number of days (default: 365 for complete Bible, 270 for OT, 90 for NT)
+- 📅 **Flexible Start Date**: Start your plan on any date (default: today) - no need to wait for January 1st
+- 🗓️ **Date Range Support**: Specify start and end dates, or use number of days
 - 📊 **Rich Metadata**: Each daily note includes frontmatter with tags, reading statistics, and Dataview-compatible fields
-- 🎯 **Progress Tracking**: Track your reading progress with built-in metadata fields
+- 📈 **Plan Index Dashboard**: Auto-generated index file with embedded Dataview queries for progress tracking
+- 🎯 **Multiple Concurrent Plans**: Create and manage multiple reading plans simultaneously with unique plan IDs
 - ⏱️ **Time Estimates**: Automatic calculation of estimated reading time based on word count
 - 🔖 **Obsidian Optimized**: Designed specifically for Obsidian with proper formatting and linking support
+- 📚 **Enhanced Book Tracking**: Support for multi-book days with structured metadata
 
 ## Installation
 
@@ -69,6 +72,8 @@ bible-study-planner generate [OPTIONS]
   - `nt` - New Testament only (27 books, 260 chapters)
 - `--days INTEGER` - Number of days in the plan (ignored if `--end-date` provided)
 - `--output PATH` - Output directory for generated files (default: `./bible-study`)
+- `--plan-name TEXT` - Human-readable plan name (auto-generated if not provided)
+- `--plan-id TEXT` - Unique plan identifier (auto-generated if not provided)
 - `--dry-run` - Preview the plan without generating files
 - `-v, --verbose` - Enable verbose output
 - `--help` - Show help message
@@ -85,14 +90,25 @@ bible-study-planner generate
 bible-study-planner generate --start-date 2025-03-15 --scope nt --days 90
 ```
 
-**Specify date range (e.g., first quarter of 2025):**
+**Specify date range (automatically calculates days):**
 ```bash
 bible-study-planner generate --start-date 2025-01-01 --end-date 2025-03-31 --scope nt
+# Creates a 90-day plan for Q1 2025
 ```
 
 **Plan until end of year:**
 ```bash
 bible-study-planner generate --end-date 2025-12-31 --scope complete
+# Starts today and runs until December 31st
+```
+
+**Create multiple concurrent plans:**
+```bash
+# Personal complete Bible plan
+bible-study-planner generate --plan-name "Personal 2025" --plan-id "personal-2025" --scope complete
+
+# Family devotional plan
+bible-study-planner generate --plan-name "Family NT Study" --plan-id "family-nt-2025" --scope nt --output ./family-devotional
 ```
 
 **New Testament in 90 days starting today:**
@@ -120,19 +136,55 @@ bible-study-planner generate --scope nt --dry-run
 bible-study-planner generate --year 2025 --scope nt
 ```
 
-## Generated File Format
+## Generated Files
+
+### Plan Index File
+
+Each plan generates a master index file (`_plan-index-{plan-id}.md`) in the parent directory containing:
+
+**Plan Index Frontmatter:**
+```yaml
+---
+type: bible-study-plan-index
+plan_id: complete-2025-canonical
+plan_name: "Complete Bible 2025"
+plan_strategy: canonical
+plan_scope: complete
+plan_start_date: 2025-01-01
+plan_end_date: 2025-12-31
+plan_total_days: 365
+plan_created: 2025-12-02T14:41:55
+plan_status: active
+tags: [bible-study, plan-index, 2025]
+---
+```
+
+**Plan Index Content:**
+- Plan details table
+- Live progress dashboard with embedded Dataview queries:
+  - Overall progress percentage
+  - Days completed vs. remaining
+  - Reading pace (last 7 days)
+  - Books and testaments completed
+  - Upcoming readings
+  - Missed days
+- Complete reading list with links to all daily notes
+- Plan statistics (books, chapters, verses, estimated hours)
+
+### Daily Note Format
 
 Each daily note includes:
 
-### Frontmatter (YAML)
+#### Single-Book Day Frontmatter
 ```yaml
 ---
 date: 2025-01-01
 day: 1
+plan_id: complete-2025-canonical
 tags: [bible-study, daily, old, law]
 testament: old
 genre: law
-book: Genesis
+books: [Genesis]
 chapters: "1-3"
 estimated_minutes: 12
 verse_count: 80
@@ -141,7 +193,31 @@ status: pending
 ---
 ```
 
-### Content Sections
+#### Multi-Book Day Frontmatter
+```yaml
+---
+date: 2025-03-17
+day: 76
+plan_id: nt-2025-canonical
+tags: [bible-study, daily, new, gospels]
+testament: new
+genre: gospels
+books: [Luke, John, Acts]
+chapters:
+  - book: Luke
+    range: "1-24"
+  - book: John
+    range: "1-21"
+  - book: Acts
+    range: "1-28"
+estimated_minutes: 722
+verse_count: 6208
+word_count: 141695
+status: pending
+---
+```
+
+#### Content Sections
 
 1. **Today's Reading** - Book and chapter information with statistics
 2. **Notes & Observations** - Space for personal notes
@@ -153,26 +229,69 @@ status: pending
 
 The generated files are fully compatible with Obsidian and include:
 
+- **Plan Index Dashboard** - Central hub with live progress tracking via Dataview queries
 - **Frontmatter metadata** for Dataview queries
+- **Unique Plan IDs** - Easily manage multiple concurrent reading plans
 - **Tags** for organization and filtering
 - **Progress tracking** with status field (pending/in-progress/completed)
 - **Reading statistics** for planning and motivation
+- **Multi-book support** with structured chapter information
 
-### Example Dataview Queries
+### Plan Index Dashboard
 
-List all completed readings:
+Open the `_plan-index-{plan-id}.md` file in your Obsidian vault to see:
+
+- **Progress percentage** and completion stats
+- **Books completed** across the plan
+- **Testament progress** breakdown
+- **Upcoming readings** for the next 7 days
+- **Missed days** that need attention
+- **Reading pace** for the last 7 days
+
+All queries update automatically as you mark daily notes as completed!
+
+### Custom Dataview Queries
+
+**Find all notes for a specific plan:**
 ```dataview
-TABLE book, chapters, estimated_minutes
+TABLE day, date, books, status
+FROM "bible-study"
+WHERE plan_id = "complete-2025-canonical"
+SORT date ASC
+```
+
+**List completed readings:**
+```dataview
+TABLE books, chapters, estimated_minutes
 FROM "bible-study"
 WHERE status = "completed"
 SORT date ASC
 ```
 
-Show progress by testament:
+**Show progress by testament:**
 ```dataview
 TABLE length(rows) as "Days", sum(rows.verse_count) as "Verses"
 FROM "bible-study"
 GROUP BY testament
+```
+
+**Find all days reading a specific book:**
+```dataview
+TABLE day, date, status
+FROM "bible-study"
+WHERE contains(books, "Romans")
+SORT date ASC
+```
+
+**Compare multiple plans:**
+```dataview
+TABLE 
+  plan_id as "Plan",
+  length(rows) as "Total Days",
+  length(filter(rows, (r) => r.status = "completed")) as "Completed",
+  sum(rows.verse_count) as "Total Verses"
+FROM "bible-study"
+GROUP BY plan_id
 ```
 
 ## Project Structure
@@ -190,9 +309,29 @@ obsidian_daily_bible_study_generator/
 │   ├── old_testament_books.json
 │   └── new_testament_books.json
 ├── ADRs/                    # Architecture Decision Records
+│   ├── ADR-001-bible-study-planner-architecture.md
+│   ├── ADR-002-flexible-start-date.md
+│   ├── ADR-003-end-date-option.md
+│   └── ADR-004-enhanced-dataview-properties.md
+├── test-output/            # Folder for testing file outputs
 ├── pyproject.toml          # Project configuration
 ├── requirements.txt        # Dependencies
 └── README.md              # This file
+```
+
+### Generated Output Structure
+
+```
+Bible-Study/
+├── _plan-index-complete-2025-canonical.md    # Plan dashboard
+├── 2025-complete/                             # Daily notes folder
+│   ├── 2025-01-01-day-001.md
+│   ├── 2025-01-02-day-002.md
+│   └── ...
+├── _plan-index-family-nt-2025.md             # Another plan
+└── family-devotional/                         # Another plan's notes
+    ├── 2025-03-01-day-001.md
+    └── ...
 ```
 
 ## Bible Data
@@ -208,6 +347,8 @@ The tool includes complete Bible structure data with:
 ## Development
 
 ### Running Tests
+
+Use the `./test-output` folder for all output testing
 
 ```bash
 pytest
@@ -237,20 +378,27 @@ See [ADR-001](ADRs/ADR-001-bible-study-planner-architecture.md) for detailed arc
 
 ## Roadmap
 
-### Current Features (v1.0)
+### Current Features (v1.3)
 - ✅ Canonical reading plan (book order)
 - ✅ Multiple scope support (complete/OT/NT)
+- ✅ Flexible start dates (start any day, not just Jan 1)
+- ✅ End date option (specify date ranges)
+- ✅ Plan index with dashboard (live progress tracking)
+- ✅ Multiple concurrent plans (unique plan IDs)
+- ✅ Enhanced metadata (books array, structured chapters)
 - ✅ Markdown generation with frontmatter
 - ✅ Reading time estimates
 - ✅ CLI interface
 
-### Planned Features
-- 🔄 Chronological reading plan
-- 🔄 Custom reading plans
-- 🔄 Progress dashboard generation
+### Planned Features (v2.0+)
+- 🔄 Chronological reading plan strategy
+- 🔄 Thematic reading plan strategy
+- 🔄 Custom reading plans (import your own)
 - 🔄 Template customization
-- 🔄 Multiple folder structures
-- 🔄 Book index generation
+- 🔄 Natural language date parsing
+- 🔄 Skip days feature (weekends, specific days)
+- 🔄 Progress resume/restart functionality
+- 🔄 Calendar file (.ics) generation
 
 ## Contributing
 

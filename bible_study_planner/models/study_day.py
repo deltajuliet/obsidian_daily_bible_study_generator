@@ -69,6 +69,20 @@ class StudyDay:
     def get_all_books(self) -> List[str]:
         """Get list of all book names for this day."""
         return [segment.book.name for segment in self.reading_segments]
+    
+    def get_structured_chapters(self) -> List[dict]:
+        """Get structured chapters data for multi-book days.
+        
+        Returns:
+            List of dicts with 'book' and 'range' keys for YAML frontmatter
+        """
+        return [
+            {
+                "book": segment.book.name,
+                "range": segment.chapter_range_str
+            }
+            for segment in self.reading_segments
+        ]
 
     def get_tags(self, base_tags: List[str], include_testament: bool = True, 
                  include_genre: bool = True, include_book: bool = False) -> List[str]:

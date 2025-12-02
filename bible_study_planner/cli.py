@@ -12,7 +12,7 @@ from .models.study_day import StudyDay
 
 
 @click.group()
-@click.version_option(version="1.0.0")
+@click.version_option(version="1.3.0")
 def main() -> None:
     """Bible Study Planner - Generate daily Bible reading plans for Obsidian."""
     pass
@@ -58,6 +58,18 @@ def main() -> None:
     show_default=True,
 )
 @click.option(
+    "--plan-name",
+    type=str,
+    default=None,
+    help="Human-readable plan name (auto-generated if not provided)",
+)
+@click.option(
+    "--plan-id",
+    type=str,
+    default=None,
+    help="Unique plan identifier (auto-generated if not provided)",
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     help="Preview the plan without generating files",
@@ -74,6 +86,8 @@ def generate(
     scope: str,
     days: int | None,
     output: Path,
+    plan_name: str | None,
+    plan_id: str | None,
     dry_run: bool,
     verbose: bool,
 ) -> None:
@@ -101,7 +115,13 @@ def generate(
         click.echo(f"❌ Error: {e}", err=True)
         sys.exit(1)
     
+    # Generate plan name and ID
+    resolved_plan_name = _generate_plan_name(plan_name, scope, resolved_start_date)
+    resolved_plan_id = _generate_plan_id(plan_id, scope, resolved_start_date)
+    
     click.echo(f"📖 Bible Study Planner")
+    click.echo(f"   Plan Name: {resolved_plan_name}")
+    click.echo(f"   Plan ID: {resolved_plan_id}")
     click.echo(f"   Start Date: {resolved_start_date}")
     click.echo(f"   Scope: {scope.upper()}")
     click.echo(f"   Days: {resolved_days}")
@@ -158,19 +178,39 @@ def generate(
             if verbose:
                 click.echo(f"Writing files to {output}...")
             
-            # Generate files (simplified for now)
+            # Generate plan index file
+            if verbose:
+                click.echo("Generating plan index...")
+            
+            plan_index_content = _generate_plan_index(
+                plan_name=resolved_plan_name,
+                plan_id=resolved_plan_id,
+                scope=scope,
+                start_date=resolved_start_date,
+                end_date=schedule[-1].date if schedule else resolved_start_date,
+                total_days=resolved_days,
+                stats=stats
+            )
+            
+            # Write plan index to parent directory
+            plan_index_filename = f"_plan-index-{resolved_plan_id}.md"
+            plan_index_path = output.parent / plan_index_filename
+            plan_index_path.write_text(plan_index_content, encoding="utf-8")
+            
+            # Generate daily note files
             files_created = 0
             for day in schedule:
                 filename = f"{day.date.strftime('%Y-%m-%d')}-day-{day.day_number:03d}.md"
                 filepath = output / filename
                 
-                # Generate simple markdown content
-                content = _generate_simple_markdown(day)
+                # Generate markdown content with plan_id
+                content = _generate_simple_markdown(day, resolved_plan_id)
                 
                 filepath.write_text(content, encoding="utf-8")
                 files_created += 1
             
             click.echo(f"✅ Created {files_created} markdown files")
+            click.echo(f"✅ Created plan index: {plan_index_path.name}")
             click.echo(f"📁 Output directory: {output.absolute()}")
             click.echo()
             click.echo("🎉 Bible study plan generated successfully!")
@@ -182,11 +222,12 @@ def generate(
         sys.exit(1)
 
 
-def _generate_simple_markdown(day: StudyDay) -> str:
+def _generate_simple_markdown(day: StudyDay, plan_id: str) -> str:
     """Generate simple markdown content for a study day.
     
     Args:
         day: StudyDay object
+        plan_id: Unique plan identifier
         
     Returns:
         Markdown content as string
@@ -194,21 +235,25 @@ def _generate_simple_markdown(day: StudyDay) -> str:
     # Build frontmatter
     segments = day.reading_segments
     tags = day.get_tags(["bible-study", "daily"])
+    all_books = day.get_all_books()
     
     content = "---\n"
     content += f"date: {day.date.strftime('%Y-%m-%d')}\n"
     content += f"day: {day.day_number}\n"
+    content += f"plan_id: {plan_id}\n"
     content += f"tags: {tags}\n"
     content += f"testament: {day.primary_testament}\n"
     content += f"genre: {day.primary_genre}\n"
-    content += f"book: {day.primary_book}\n"
+    content += f"books: {all_books}\n"
     
-    # Handle chapters field
+    # Handle chapters field - use structured format for multi-book days
     if len(segments) == 1:
         content += f'chapters: "{segments[0].chapter_range_str}"\n'
     else:
-        chapters_list = [seg.chapter_range_str for seg in segments]
-        content += f'chapters: {chapters_list}\n'
+        content += "chapters:\n"
+        for chapter_info in day.get_structured_chapters():
+            content += f"  - book: {chapter_info['book']}\n"
+            content += f"    range: \"{chapter_info['range']}\"\n"
     
     content += f"estimated_minutes: {day.total_minutes}\n"
     content += f"verse_count: {day.total_verses}\n"
@@ -313,6 +358,225 @@ def _validate_date_range(check_date: date) -> None:
             f"Start date cannot be more than 10 years in the future "
             f"(max: {max_date.strftime('%Y-%m-%d')})"
         )
+
+
+def _generate_plan_name(custom_name: str | None, scope: str, start_date: date) -> str:
+    """Generate a human-readable plan name.
+    
+    Args:
+        custom_name: Custom plan name if provided
+        scope: Bible scope (complete, ot, nt)
+        start_date: Plan start date
+        
+    Returns:
+        Generated or custom plan name
+    """
+    if custom_name:
+        return custom_name
+    
+    # Auto-generate based on scope and year
+    scope_names = {
+        "complete": "Complete Bible",
+        "ot": "Old Testament",
+        "nt": "New Testament"
+    }
+    
+    scope_label = scope_names.get(scope.lower(), "Bible")
+    year = start_date.year
+    
+    return f"{scope_label} {year}"
+
+
+def _generate_plan_id(custom_id: str | None, scope: str, start_date: date) -> str:
+    """Generate a unique plan identifier.
+    
+    Args:
+        custom_id: Custom plan ID if provided
+        scope: Bible scope (complete, ot, nt)
+        start_date: Plan start date
+        
+    Returns:
+        Generated or custom plan ID (lowercase, hyphenated)
+    """
+    if custom_id:
+        # Sanitize custom ID
+        return custom_id.lower().replace(" ", "-").replace("_", "-")
+    
+    # Auto-generate: {scope}-{year}-canonical
+    year = start_date.year
+    return f"{scope.lower()}-{year}-canonical"
+
+
+def _generate_plan_index(
+    plan_name: str,
+    plan_id: str,
+    scope: str,
+    start_date: date,
+    end_date: date,
+    total_days: int,
+    stats: dict
+) -> str:
+    """Generate plan index file with DataView queries.
+    
+    Args:
+        plan_name: Human-readable plan name
+        plan_id: Unique plan identifier
+        scope: Bible scope (complete, ot, nt)
+        start_date: Plan start date
+        end_date: Plan end date
+        total_days: Total days in plan
+        stats: Scope statistics dictionary
+        
+    Returns:
+        Markdown content for plan index file
+    """
+    created_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    
+    scope_display = {
+        "complete": "Complete Bible (66 books)",
+        "ot": "Old Testament",
+        "nt": "New Testament"
+    }.get(scope.lower(), scope.upper())
+    
+    content = f"""---
+type: bible-study-plan-index
+plan_id: {plan_id}
+plan_name: "{plan_name}"
+plan_strategy: canonical
+plan_scope: {scope.lower()}
+plan_start_date: {start_date.strftime('%Y-%m-%d')}
+plan_end_date: {end_date.strftime('%Y-%m-%d')}
+plan_total_days: {total_days}
+plan_created: {created_timestamp}
+plan_status: active
+tags: [bible-study, plan-index, {start_date.year}]
+---
+
+# 📖 {plan_name}
+
+**Reading Plan Index & Dashboard**
+
+## Plan Details
+
+| Property | Value |
+|----------|-------|
+| **Plan ID** | `{plan_id}` |
+| **Strategy** | Canonical (Book Order) |
+| **Scope** | {scope_display} |
+| **Duration** | {total_days} days |
+| **Start Date** | {start_date.strftime('%B %d, %Y')} |
+| **End Date** | {end_date.strftime('%B %d, %Y')} |
+| **Status** | Active |
+| **Created** | {datetime.now().strftime('%Y-%m-%d')} |
+
+## 📊 Progress Dashboard
+
+### Overall Progress
+
+```dataview
+TABLE WITHOUT ID
+  length(rows) as "Days Completed",
+  ({total_days} - length(rows)) as "Days Remaining",
+  round((length(rows) / {total_days}) * 100, 1) + "%" as "Progress",
+  sum(rows.verse_count) as "Verses Read",
+  round(sum(rows.estimated_minutes) / 60, 1) + "h" as "Time Invested"
+FROM ""
+WHERE plan_id = "{plan_id}" AND status = "completed"
+GROUP BY "Progress Summary"
+```
+
+### Reading Pace (Last 7 Days)
+
+```dataview
+TABLE WITHOUT ID
+  file.link as "Day",
+  books as "Books",
+  verse_count as "Verses",
+  estimated_minutes + " min" as "Time"
+WHERE plan_id = "{plan_id}"
+SORT date DESC
+LIMIT 7
+```
+
+### Books Completed
+
+```dataview
+TABLE WITHOUT ID
+  book as "Book",
+  length(rows.file) as "Days",
+  sum(rows.verse_count) as "Verses"
+WHERE plan_id = "{plan_id}" AND status = "completed"
+FLATTEN books as book
+GROUP BY book
+SORT book ASC
+```
+
+### Testament Progress
+
+```dataview
+TABLE WITHOUT ID
+  testament as "Testament",
+  length(rows.file) as "Days Completed",
+  sum(rows.verse_count) as "Verses Read",
+  round(sum(rows.estimated_minutes) / 60, 1) + "h" as "Time"
+WHERE plan_id = "{plan_id}" AND status = "completed"
+GROUP BY testament
+```
+
+### Upcoming Readings
+
+```dataview
+TABLE WITHOUT ID
+  file.link as "Day",
+  date as "Date",
+  books as "Books",
+  verse_count as "Verses"
+WHERE plan_id = "{plan_id}" AND status = "pending"
+SORT date ASC
+LIMIT 7
+```
+
+### Missed Days
+
+```dataview
+LIST
+WHERE plan_id = "{plan_id}" 
+  AND status = "pending" 
+  AND date < date(today)
+SORT date ASC
+```
+
+## 📚 All Readings
+
+```dataview
+TABLE
+  day as "Day #",
+  date as "Date",
+  books as "Books",
+  verse_count as "Verses",
+  status as "Status"
+WHERE plan_id = "{plan_id}"
+SORT date ASC
+```
+
+## 📈 Plan Statistics
+
+- **Total Books**: {stats['books']}
+- **Total Chapters**: {stats['chapters']}
+- **Total Verses**: {stats['verses']}
+- **Estimated Hours**: {stats['estimated_hours']}h
+- **Avg Chapters/Day**: {stats['chapters'] / total_days:.1f}
+
+## Notes
+
+*Use this space to track overall plan insights, goals, or modifications*
+
+---
+
+**Generated by**: Bible Study Planner v1.3
+"""
+    
+    return content
 
 
 def _resolve_days(
