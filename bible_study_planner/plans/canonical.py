@@ -89,34 +89,37 @@ class CanonicalPlan(ReadingPlanStrategy):
         while book_index < len(books):
             book = books[book_index]
             
+            # Calculate how many verses we should aim for today
+            days_completed = len(assignments)
+            days_remaining = days - days_completed
+            verses_remaining_total = total_verses - total_verses_assigned
+            ideal_verses_today = verses_remaining_total / days_remaining if days_remaining > 0 else verses_remaining_total
+            
             # Determine how many chapters to read in this segment
-            # Start with a single chapter
+            # Build chapter by chapter for precision
             start_chapter = chapter_index
             end_chapter = start_chapter
             
-            # Calculate verses for this chapter
-            segment_verses = book.get_verses_in_range(start_chapter, end_chapter)
-            
-            # Try to extend the segment if we haven't reached target yet
-            # and there are more chapters in this book
-            while (end_chapter < book.chapters and 
-                   current_day_verses + segment_verses < target_verses_per_day):
-                # Check if adding the next chapter would overshoot too much
-                next_chapter_verses = book.get_verses_in_range(end_chapter + 1, end_chapter + 1)
-                potential_total = current_day_verses + segment_verses + next_chapter_verses
-                
-                # Add next chapter if it doesn't overshoot too badly
-                # or if we're still under target
-                if potential_total <= target_verses_per_day * 1.2:  # Allow 20% overshoot
-                    end_chapter += 1
-                    segment_verses = book.get_verses_in_range(start_chapter, end_chapter)
-                else:
-                    break
-            
-            # For very small books (3 chapters or less), read entire book
+            # For very small books (3 chapters or less), read entire book as one segment
             if book.chapters <= 3 and start_chapter == 1:
                 end_chapter = book.chapters
-                segment_verses = book.get_verses_in_range(start_chapter, end_chapter)
+            else:
+                # Add chapters one at a time until we approach the target
+                while end_chapter < book.chapters:
+                    # Check if adding next chapter would be reasonable
+                    next_verses = book.get_verses_in_range(start_chapter, end_chapter + 1)
+                    total_with_next = current_day_verses + next_verses
+                    
+                    # Stop if adding next chapter would put us significantly over target
+                    if total_with_next > ideal_verses_today and current_day_verses > 0:
+                        break
+                    
+                    # Otherwise, extend the segment
+                    end_chapter += 1
+                    
+                    # Stop if we've reached a reasonable stopping point
+                    if total_with_next >= ideal_verses_today * 0.9:  # 90% of target
+                        break
             
             # Create the segment
             verse_count = book.get_verses_in_range(start_chapter, end_chapter)
@@ -147,25 +150,13 @@ class CanonicalPlan(ReadingPlanStrategy):
                 # More chapters in this book
                 chapter_index = end_chapter + 1
             
-            # Check if we should move to the next day
-            days_completed = len(assignments)
-            days_remaining = days - days_completed - 1  # -1 for current day being built
-            verses_remaining = total_verses - total_verses_assigned - current_day_verses
-            
-            if days_remaining > 0:
-                # Calculate ideal verses for current day based on remaining content
-                ideal_verses_for_today = verses_remaining / (days_remaining + 1)  # +1 includes current day
-                
-                # Move to next day if current day has met or slightly exceeded ideal
-                # Use a small tolerance (5%) to avoid being too strict
-                if current_day_verses >= ideal_verses_for_today * 0.95:
-                    assignments.append(current_day_segments)
-                    total_verses_assigned += current_day_verses
-                    current_day_segments = []
-                    current_day_verses = 0
-            elif days_remaining == 0 and book_index < len(books):
-                # This is the last day, keep adding everything remaining
-                pass
+            # Decide if we should move to the next day
+            # Move if we're close enough to target and have more days remaining
+            if days_remaining > 1 and current_day_verses >= ideal_verses_today * 0.85:  # 85% threshold
+                assignments.append(current_day_segments)
+                total_verses_assigned += current_day_verses
+                current_day_segments = []
+                current_day_verses = 0
         
         # Add the last day's segments
         if current_day_segments:
