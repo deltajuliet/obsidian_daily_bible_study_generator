@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 
 from .bible.data_manager import BibleDataManager, BibleScope
+from .bible.vault_linker import VaultBibleLinker
 from .plans.canonical import CanonicalPlan
 from .models.study_day import StudyDay
 
@@ -79,6 +80,21 @@ def main() -> None:
     is_flag=True,
     help="Verbose output",
 )
+@click.option(
+    "--vault-bible",
+    type=str,
+    default=None,
+    help="Link to BibleGateway-to-Obsidian Scripture folder. "
+         "Include translation subfolder if using multiple translations "
+         "(e.g., 'Scripture', 'Bible/ESV', 'Bible/NIV')",
+)
+@click.option(
+    "--vault-bible-format",
+    type=click.Choice(["expanded", "inline", "hybrid"], case_sensitive=False),
+    default="expanded",
+    help="Format for Bible links: expanded (default), inline, or hybrid",
+    show_default=True,
+)
 def generate(
     start_date: str | None,
     end_date: str | None,
@@ -90,6 +106,8 @@ def generate(
     plan_id: str | None,
     dry_run: bool,
     verbose: bool,
+    vault_bible: str | None,
+    vault_bible_format: str,
 ) -> None:
     """Generate a Bible reading plan."""
     
@@ -119,6 +137,21 @@ def generate(
     resolved_plan_name = _generate_plan_name(plan_name, scope, resolved_start_date)
     resolved_plan_id = _generate_plan_id(plan_id, scope, resolved_start_date)
     
+    # Initialize vault Bible linker if enabled
+    bible_linker = None
+    if vault_bible:
+        bible_linker = VaultBibleLinker(vault_bible, vault_bible_format)
+        
+        # Validate path
+        if not bible_linker.validate_path(output):
+            click.echo(f"⚠️  Warning: Bible folder not found: {vault_bible}")
+            click.echo("   Links will be generated but may not resolve.")
+            click.echo("   Generate Bible: https://github.com/selfire1/BibleGateway-to-Obsidian")
+            click.echo()
+        else:
+            if verbose:
+                click.echo(f"✅ Found Bible folder: {vault_bible}")
+    
     click.echo(f"📖 Bible Study Planner")
     click.echo(f"   Plan Name: {resolved_plan_name}")
     click.echo(f"   Plan ID: {resolved_plan_id}")
@@ -126,6 +159,8 @@ def generate(
     click.echo(f"   Scope: {scope.upper()}")
     click.echo(f"   Days: {resolved_days}")
     click.echo(f"   Output: {output}")
+    if vault_bible:
+        click.echo(f"   Vault Bible: {vault_bible} ({vault_bible_format})")
     click.echo()
     
     try:
@@ -203,8 +238,8 @@ def generate(
                 filename = f"{day.date.strftime('%Y-%m-%d')}-day-{day.day_number:03d}.md"
                 filepath = output / filename
                 
-                # Generate markdown content with plan_id
-                content = _generate_simple_markdown(day, resolved_plan_id)
+                # Generate markdown content with plan_id and optional Bible linker
+                content = _generate_simple_markdown(day, resolved_plan_id, bible_linker)
                 
                 filepath.write_text(content, encoding="utf-8")
                 files_created += 1
@@ -222,12 +257,17 @@ def generate(
         sys.exit(1)
 
 
-def _generate_simple_markdown(day: StudyDay, plan_id: str) -> str:
+def _generate_simple_markdown(
+    day: StudyDay, 
+    plan_id: str, 
+    bible_linker: VaultBibleLinker | None = None
+) -> str:
     """Generate simple markdown content for a study day.
     
     Args:
         day: StudyDay object
         plan_id: Unique plan identifier
+        bible_linker: Optional VaultBibleLinker for generating Scripture links
         
     Returns:
         Markdown content as string
@@ -236,11 +276,29 @@ def _generate_simple_markdown(day: StudyDay, plan_id: str) -> str:
     segments = day.reading_segments
     tags = day.get_tags(["bible-study", "daily"])
     all_books = day.get_all_books()
+    all_scripture_links = []
+    
+    # Collect scripture links if linker is enabled
+    if bible_linker:
+        for segment in segments:
+            links = bible_linker.generate_chapter_links(
+                segment.book.name,
+                segment.start_chapter,
+                segment.end_chapter
+            )
+            all_scripture_links.extend(bible_linker.get_frontmatter_links(links))
     
     content = "---\n"
     content += f"date: {day.date.strftime('%Y-%m-%d')}\n"
     content += f"day: {day.day_number}\n"
     content += f"plan_id: {plan_id}\n"
+    
+    # Add scripture_links if linker enabled
+    if all_scripture_links:
+        content += "scripture_links:\n"
+        for link in all_scripture_links:
+            content += f'  - "{link}"\n'
+    
     content += f"tags: {tags}\n"
     content += f"testament: {day.primary_testament}\n"
     content += f"genre: {day.primary_genre}\n"
@@ -266,7 +324,23 @@ def _generate_simple_markdown(day: StudyDay, plan_id: str) -> str:
     
     content += "## 📖 Today's Reading\n\n"
     for segment in segments:
-        content += f"**{segment.book.name} {segment.chapter_range_str}**\n\n"
+        if bible_linker:
+            # Generate wikilinks
+            links = bible_linker.generate_chapter_links(
+                segment.book.name,
+                segment.start_chapter,
+                segment.end_chapter
+            )
+            formatted = bible_linker.format_links(
+                links,
+                segment.book.name,
+                segment.start_chapter,
+                segment.end_chapter
+            )
+            content += f"{formatted}\n\n"
+        else:
+            # Plain text (default behavior)
+            content += f"**{segment.book.name} {segment.chapter_range_str}**\n\n"
     
     content += f"- 📊 {day.total_verses} verses\n"
     content += f"- 📝 ~{day.total_words} words\n"
