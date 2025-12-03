@@ -390,16 +390,6 @@ See [ADR-001](ADRs/ADR-001-bible-study-planner-architecture.md) for detailed arc
 - ✅ Reading time estimates
 - ✅ CLI interface
 
-### Planned Features (v2.0+)
-- 🔄 Chronological reading plan strategy
-- 🔄 Thematic reading plan strategy
-- 🔄 Custom reading plans (import your own)
-- 🔄 Template customization
-- 🔄 Natural language date parsing
-- 🔄 Skip days feature (weekends, specific days)
-- 🔄 Progress resume/restart functionality
-- 🔄 Calendar file (.ics) generation
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
