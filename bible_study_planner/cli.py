@@ -14,7 +14,31 @@ from .models.study_day import StudyDay
 @click.group()
 @click.version_option(version="1.3.0")
 def main() -> None:
-    """Bible Study Planner - Generate daily Bible reading plans for Obsidian."""
+    """Bible Study Planner - Generate daily Bible reading plans for Obsidian.
+
+    Create structured, customizable Bible reading schedules as Markdown files
+    optimized for the Obsidian note-taking application. Features include:
+
+    • Multiple scopes (Complete Bible, Old Testament, New Testament)
+    • Flexible start dates and date ranges
+    • Rich metadata and Dataview integration
+    • Multiple concurrent plans with unique IDs
+    • Automatic time estimates and progress tracking
+
+    Examples:
+
+      # Start reading today (365-day complete Bible plan)
+      bible-study-planner generate
+
+      # New Testament in 90 days starting today
+      bible-study-planner generate --scope nt --days 90
+
+      # Custom date range (Q1 2025)
+      bible-study-planner generate --start-date 2025-01-01 --end-date 2025-03-31
+
+    For more help on a specific command, use:
+      bible-study-planner COMMAND --help
+    """
     pass
 
 
@@ -91,7 +115,55 @@ def generate(
     dry_run: bool,
     verbose: bool,
 ) -> None:
-    """Generate a Bible reading plan."""
+    """Generate a Bible reading plan with rich metadata for Obsidian.
+
+    Creates daily study notes with frontmatter, reading segments, and a dashboard
+    index file with embedded Dataview queries for progress tracking.
+
+    \b
+    COMMON EXAMPLES:
+      Start reading the complete Bible today (365 days):
+        $ bible-study-planner generate
+
+      New Testament in 90 days:
+        $ bible-study-planner generate --scope nt --days 90
+
+      Specify a date range (automatically calculates days):
+        $ bible-study-planner generate --start-date 2025-01-01 --end-date 2025-12-31
+
+      Old Testament starting on a specific date:
+        $ bible-study-planner generate --start-date 2025-06-15 --scope ot
+
+      Preview before generating:
+        $ bible-study-planner generate --scope nt --dry-run
+
+      Create multiple concurrent plans:
+        $ bible-study-planner generate --plan-name "Personal 2025" --plan-id "personal-2025"
+        $ bible-study-planner generate --plan-name "Family NT" --plan-id "family-nt" --scope nt
+
+      Custom output directory:
+        $ bible-study-planner generate --output ~/Documents/Obsidian/BibleStudy
+
+    \b
+    OUTPUT:
+      Generates two types of files:
+      1. Plan Index: _plan-index-{plan-id}.md with progress dashboard
+      2. Daily Notes: {date}-day-{num}.md with readings and reflection prompts
+
+    \b
+    SCOPES:
+      complete - Full Bible (66 books, 1,189 chapters, ~365 days default)
+      ot       - Old Testament (39 books, 929 chapters, ~270 days default)
+      nt       - New Testament (27 books, 260 chapters, ~90 days default)
+
+    \b
+    DATE OPTIONS:
+      --start-date  Starting date (default: today)
+      --end-date    Ending date (auto-calculates number of days)
+      --days        Explicit day count (overridden by --end-date)
+
+    If neither --end-date nor --days is specified, uses scope-based defaults.
+    """
     
     # Map scope string to BibleScope enum (needed for day resolution)
     scope_map = {
