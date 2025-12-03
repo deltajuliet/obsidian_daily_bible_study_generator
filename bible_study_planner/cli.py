@@ -557,6 +557,19 @@ WHERE plan_id = "{plan_id}" AND status = "completed"
 GROUP BY "Progress Summary"
 ```
 
+### Upcoming Readings
+
+```dataview
+TABLE WITHOUT ID
+  file.link as "Day",
+  date as "Date",
+  books as "Books",
+  verse_count as "Verses"
+WHERE plan_id = "{plan_id}" AND status = "pending"
+SORT date ASC
+LIMIT 7
+```
+
 ### Reading Pace (Last 7 Days)
 
 ```dataview
@@ -564,8 +577,11 @@ TABLE WITHOUT ID
   file.link as "Day",
   books as "Books",
   verse_count as "Verses",
-  estimated_minutes + " min" as "Time"
+  estimated_minutes + " min" as "Time",
+  status as "Status"
 WHERE plan_id = "{plan_id}"
+  AND date >= date(today) - dur(7 days)
+  AND date <= date(today)
 SORT date DESC
 LIMIT 7
 ```
@@ -593,19 +609,6 @@ TABLE WITHOUT ID
   round(sum(rows.estimated_minutes) / 60, 1) + "h" as "Time"
 WHERE plan_id = "{plan_id}" AND status = "completed"
 GROUP BY testament
-```
-
-### Upcoming Readings
-
-```dataview
-TABLE WITHOUT ID
-  file.link as "Day",
-  date as "Date",
-  books as "Books",
-  verse_count as "Verses"
-WHERE plan_id = "{plan_id}" AND status = "pending"
-SORT date ASC
-LIMIT 7
 ```
 
 ### Missed Days
