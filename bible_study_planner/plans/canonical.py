@@ -76,6 +76,19 @@ class CanonicalPlan(ReadingPlanStrategy):
         total_verses = sum(book.total_verses for book in books)
         target_verses_per_day = total_verses / days
 
+        # Adaptive thresholds based on plan duration
+        # Shorter plans (fewer days, more verses/day) need higher thresholds to fill days properly
+        # Longer plans (more days, fewer verses/day) need lower thresholds to avoid overshooting
+        if days <= 30:
+            segment_threshold = 0.90  # More aggressive filling for short plans
+            day_threshold = 0.92
+        elif days <= 90:
+            segment_threshold = 0.80  # Conservative for medium plans
+            day_threshold = 0.85
+        else:
+            segment_threshold = 0.75  # Very conservative for long plans
+            day_threshold = 0.82
+
         # Build assignments day by day, maintaining canonical order
         assignments: List[List[ReadingSegment]] = []
         current_day_segments: List[ReadingSegment] = []
@@ -114,8 +127,8 @@ class CanonicalPlan(ReadingPlanStrategy):
                     if total_with_next > ideal_verses_today and current_day_verses > 0:
                         break
 
-                    # Stop if we've reached 80% of target
-                    if total_with_next >= ideal_verses_today * 0.80:
+                    # Stop if we've reached segment threshold
+                    if total_with_next >= ideal_verses_today * segment_threshold:
                         end_chapter += 1  # Include this chapter
                         break
 
@@ -152,9 +165,8 @@ class CanonicalPlan(ReadingPlanStrategy):
                 chapter_index = end_chapter + 1
 
             # Decide if we should move to the next day
-            # Use conservative threshold to prevent accumulating excess early
-            # This reserves more content for later days which have shorter books
-            if days_remaining > 1 and current_day_verses >= ideal_verses_today * 0.85:
+            # Use adaptive threshold based on plan duration
+            if days_remaining > 1 and current_day_verses >= ideal_verses_today * day_threshold:
                 assignments.append(current_day_segments)
                 total_verses_assigned += current_day_verses
                 current_day_segments = []
