@@ -2,6 +2,13 @@
 
 A Python-based tool that generates daily Bible study plans as Markdown files optimized for the Obsidian note-taking application. Create structured, customizable reading schedules with rich metadata for tracking progress and integrating with Obsidian's ecosystem.
 
+### Study Note Example
+<img width="1063" height="1878" alt="study_note" src="https://github.com/user-attachments/assets/f94201b3-31eb-4274-8b4d-4e3f530a6701" />
+
+### Study Plan Summary
+<img width="1197" height="1458" alt="study_plan_summary" src="https://github.com/user-attachments/assets/f78f59ad-7ba0-4c5e-9e16-f5a5ef22a8fa" />
+
+
 ## Features
 
 - 📖 **Multiple Scopes**: Generate plans for the complete Bible, Old Testament only, or New Testament only
